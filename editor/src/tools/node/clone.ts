@@ -1,4 +1,4 @@
-import { Node, Tools, Sprite, ParticleSystem, GPUParticleSystem, Mesh } from "babylonjs";
+import { Node, Tools, Sprite, ParticleSystem, GPUParticleSystem, Mesh, ShadowGenerator, RenderTargetTexture, Material } from "babylonjs";
 
 import { Editor } from "../../editor/main";
 
@@ -6,6 +6,7 @@ import { SpriteMapNode } from "../../editor/nodes/sprite-map";
 import { SpriteManagerNode } from "../../editor/nodes/sprite-manager";
 
 import { configureImportedMaterial, configureImportedNodeIds, configureImportedTexture } from "../../editor/layout/preview/import/import";
+import { configureSimultaneousLightsForMaterial } from "../material/material";
 
 import { getProjectAssetsRootUrl } from "../../project/configuration";
 
@@ -54,8 +55,33 @@ export function cloneNode(editor: Editor, node: Node | Sprite | ParticleSystem |
 		}
 	} else if (isLight(node)) {
 		clone = node.clone(name, node.parent);
-		if (isClusteredLight(node, editor) && isLight(clone)) {
-			editor.layout.preview.clusteredLightContainer.addLight(clone);
+		if (isLight(clone)) {
+			const sourceGenerator = (node as any).getShadowGenerator?.();
+			if (sourceGenerator) {
+				try {
+					const serialized = sourceGenerator.serialize();
+					serialized.id = Tools.RandomId();
+					serialized.lightId = clone.id;
+					const newGenerator = ShadowGenerator.Parse(serialized, editor.layout.preview.scene);
+					if (newGenerator) {
+						const shadowMap = newGenerator.getShadowMap();
+						if (shadowMap) {
+							shadowMap.refreshRate = sourceGenerator.getShadowMap()?.refreshRate ?? RenderTargetTexture.REFRESHRATE_RENDER_ONEVERYFRAME;
+							const sourceRenderList = sourceGenerator.getShadowMap()?.renderList ?? [];
+							shadowMap.renderList = [...sourceRenderList];
+						}
+					}
+				} catch (e) {
+					editor.layout.console.warn(`Could not clone shadow generator for light ${clone.name}: ${(e as Error).message}`);
+				}
+			}
+
+			if (isClusteredLight(node, editor)) {
+				editor.layout.preview.clusteredLightContainer.addLight(clone);
+			}
+
+			editor.layout.preview.scene.materials.forEach((m) => configureSimultaneousLightsForMaterial(m));
+			editor.layout.preview.scene.markAllMaterialsAsDirty(Material.LightDirtyFlag);
 		}
 	} else if (isCamera(node)) {
 		clone = node.clone(name, node.parent);

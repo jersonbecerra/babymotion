@@ -283,6 +283,9 @@ export class EditorSceneInspector extends Component<IEditorInspectorImplementati
 
 					{configuration && (
 						<>
+							<div className="px-2 py-1.5 text-xs text-muted-foreground bg-muted/40 rounded border border-border/40 mx-2 mb-2">
+								Tip: Enable <strong>Volumetric Lighting</strong> on individual lights (Spot, Point, Directional) to produce light shafts.
+							</div>
 							<EditorInspectorNumberField object={configuration} property="intensity" label="Intensity" min={0} step={0.01} />
 
 							<EditorInspectorListField

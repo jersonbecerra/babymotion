@@ -1,4 +1,4 @@
-import { Light, RenderTargetTexture, Scene, Vector3 } from "babylonjs";
+import { Light, Scene, Vector3 } from "babylonjs";
 
 import { isGaussianSplattingMesh, isPointLight, isSpotLight } from "../guards/nodes";
 
@@ -23,6 +23,10 @@ export function updatePointLightShadowMapRenderListPredicate(light: Light): void
 			return false;
 		}
 
+		if (light.range <= 0) {
+			return true;
+		}
+
 		const distance = Vector3.Distance(mesh.getAbsolutePosition(), light.getAbsolutePosition());
 		return distance <= light.range;
 	};
@@ -39,9 +43,7 @@ export function updateLightShadowMapRefreshRate(light: Light): void {
 		return;
 	}
 
-	if (shadowMap.refreshRate === RenderTargetTexture.REFRESHRATE_RENDER_ONCE) {
-		shadowMap.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-	}
+	shadowMap.resetRefreshCounter();
 }
 
 /**
@@ -49,7 +51,30 @@ export function updateLightShadowMapRefreshRate(light: Light): void {
  * @param scene defines the reference to the scene that contains all lights to update.
  */
 export function updateAllLights(scene: Scene) {
+	const meshes = scene.meshes.filter((m) => !isGaussianSplattingMesh(m));
+
 	scene.lights.forEach((light) => {
+		const generator = light.getShadowGenerator();
+		if (generator) {
+			const shadowMap = generator.getShadowMap();
+			if (shadowMap) {
+				if (!shadowMap.renderList || shadowMap.renderList.length === 0) {
+					shadowMap.renderList = meshes.slice(0);
+				} else {
+					meshes.forEach((m) => {
+						if (!shadowMap.renderList!.includes(m)) {
+							shadowMap.renderList!.push(m);
+						}
+					});
+				}
+
+				if (scene.activeCamera) {
+					shadowMap.activeCamera = scene.activeCamera;
+				}
+				shadowMap.resetRefreshCounter();
+			}
+		}
+
 		updateLightShadowMapRefreshRate(light);
 		updatePointLightShadowMapRenderListPredicate(light);
 	});

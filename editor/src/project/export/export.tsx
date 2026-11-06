@@ -6,7 +6,7 @@ import { RenderTargetTexture, SceneSerializer, GaussianSplattingMesh } from "bab
 import { toast } from "sonner";
 
 import { isNodeMaterial } from "../../tools/guards/material";
-import { isHDRCubeTexture } from "../../tools/guards/texture";
+import { isCubeTexture, isHDRCubeTexture, isTexture } from "../../tools/guards/texture";
 import { getCollisionMeshFor } from "../../tools/mesh/collision";
 import { storeTexturesBaseSize } from "../../tools/material/texture";
 import { extractNodeMaterialTextures } from "../../tools/material/extract";
@@ -117,6 +117,24 @@ async function _exportProject(editor: Editor, options: IExportProjectOptions): P
 
 	storeTexturesBaseSize(scene);
 
+	const normalizedProjectDir = projectDir.replace(/\\/g, "/");
+	scene.textures.forEach((texture) => {
+		if (isTexture(texture) || isCubeTexture(texture) || isHDRCubeTexture(texture)) {
+			if (texture.name) {
+				texture.name = texture.name.replace(/\\/g, "/");
+				if (normalizedProjectDir && texture.name.startsWith(normalizedProjectDir + "/")) {
+					texture.name = texture.name.slice(normalizedProjectDir.length + 1);
+				}
+			}
+			if (texture.url) {
+				texture.url = texture.url.replace(/\\/g, "/");
+				if (normalizedProjectDir && texture.url.startsWith(normalizedProjectDir + "/")) {
+					texture.url = texture.url.slice(normalizedProjectDir.length + 1);
+				}
+			}
+		}
+	});
+
 	scene.meshes.forEach((mesh) => (mesh.doNotSerialize = ((mesh.metadata?.doNotSerialize ?? false) || mesh.reservedDataStore?.hidden) ?? false));
 	scene.lights.forEach((light) => (light.doNotSerialize = light.metadata?.doNotSerialize ?? false));
 	scene.cameras.forEach((camera) => (camera.doNotSerialize = camera.metadata?.doNotSerialize ?? false));
@@ -217,7 +235,7 @@ async function _exportProject(editor: Editor, options: IExportProjectOptions): P
 						});
 
 						if (materialIndex !== -1) {
-							data.materials.splice(materialIndex);
+							data.materials.splice(materialIndex, 1);
 						}
 					}
 

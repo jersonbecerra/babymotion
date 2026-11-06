@@ -1,6 +1,6 @@
 import { isAbsolute } from "path";
 import { pathExists, readFile, readJSON, writeFile } from "fs-extra";
-import { join, dirname, basename, extname, normalize } from "path/posix";
+import { join, dirname, basename, extname } from "path/posix";
 
 import axios from "axios";
 import { toast } from "sonner";
@@ -246,15 +246,22 @@ export function configureImportedMaterial(material: Material) {
 }
 
 export function configureImportedTexture<T extends Texture | CubeTexture | ColorGradingTexture | HDRCubeTexture>(texture: T, noCheckInvertY?: boolean): T {
-	if (isAbsolute(texture.name)) {
+	const projectDir = projectConfiguration.path ? dirname(projectConfiguration.path).replace(/\\/g, "/") : "";
+	const normalizedName = texture.name.replace(/\\/g, "/");
+
+	if (isAbsolute(texture.name) || isAbsolute(normalizedName)) {
 		if (!noCheckInvertY && isTexture(texture) && !texture.invertY && !texture._buffer) {
 			texture._invertY = true;
 			texture.vScale *= -1;
 			texture.updateURL(texture.name);
 		}
 
-		texture.name = texture.name.replace(join(dirname(projectConfiguration.path!), "/"), "");
-		texture.url = texture.name;
+		let relativePath = normalizedName;
+		if (projectDir) {
+			relativePath = relativePath.replace(join(projectDir, "/"), "").replace(projectDir + "/", "");
+		}
+		texture.name = relativePath;
+		texture.url = relativePath;
 	}
 
 	return texture;
@@ -347,7 +354,12 @@ export function cleanTexture(texture: Texture, filename: string) {
 		texture.updateURL(filename);
 	}
 
-	const relativePath = normalize(filename).replace(join(dirname(projectConfiguration.path!), "/"), "");
+	const projectDir = projectConfiguration.path ? dirname(projectConfiguration.path).replace(/\\/g, "/") : "";
+	const normalizedFilename = filename.replace(/\\/g, "/");
+	let relativePath = normalizedFilename;
+	if (projectDir) {
+		relativePath = relativePath.replace(join(projectDir, "/"), "").replace(projectDir + "/", "");
+	}
 	texture.name = relativePath;
 	texture.url = relativePath;
 

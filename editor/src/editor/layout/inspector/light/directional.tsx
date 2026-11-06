@@ -57,6 +57,7 @@ export class EditorDirectionalLightInspector extends Component<IEditorInspectorI
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 					<EditorInspectorVectorField
@@ -66,6 +67,7 @@ export class EditorDirectionalLightInspector extends Component<IEditorInspectorI
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 				</EditorInspectorSectionField>

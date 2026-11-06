@@ -44,7 +44,7 @@ export class Splash extends Component {
 				</Fade>
 
 				<Fade delay={500}>
-					<div className="text-center w-full text-3xl">Babylon.js Editor</div>
+					<div className="text-center w-full text-3xl">Babymotion</div>
 				</Fade>
 
 				<div className="flex items-center gap-[10px]">

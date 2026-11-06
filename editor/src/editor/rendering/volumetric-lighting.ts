@@ -10,6 +10,10 @@ let volumetricLightingRenderingPipeline: VolumetricLightingRenderingPipeline | n
 let configuration: any = null;
 
 export function getVolumetricLightingRenderingPipelineConfiguration(): any {
+	if (volumetricLightingRenderingPipeline && !volumetricLightingRenderingPipeline.isDisposed) {
+		return volumetricLightingRenderingPipeline.serializeConfiguration();
+	}
+
 	return configuration;
 }
 
@@ -36,27 +40,32 @@ export function isVolumetricLightingSupported(editor: Editor): boolean {
 	return engine ? VolumetricLightingRenderingPipeline.IsSupported(engine) : false;
 }
 
-export function disposeVolumetricLightingRenderingPipeline(): void {
+export function disposeVolumetricLightingRenderingPipeline(keepConfiguration: boolean = false): void {
 	if (volumetricLightingRenderingPipeline) {
 		volumetricLightingRenderingPipeline.dispose();
 		volumetricLightingRenderingPipeline = null;
+	}
+	if (!keepConfiguration) {
+		configuration = null;
 	}
 }
 
 export function createVolumetricLightingRenderingPipeline(editor: Editor): VolumetricLightingRenderingPipeline {
 	const scene = editor.layout.preview.scene as any;
+	const activeCamera = scene.activeCamera ?? editor.layout.preview.camera;
 
-	volumetricLightingRenderingPipeline = new VolumetricLightingRenderingPipeline("VolumetricLightingRenderingPipeline", scene, scene.activeCamera!);
+	volumetricLightingRenderingPipeline = new VolumetricLightingRenderingPipeline("VolumetricLightingRenderingPipeline", scene, activeCamera!);
+	configuration = volumetricLightingRenderingPipeline.serializeConfiguration();
 
 	return volumetricLightingRenderingPipeline;
 }
 
 export function serializeVolumetricLightingRenderingPipeline(): any {
-	if (!volumetricLightingRenderingPipeline) {
-		return null;
+	if (volumetricLightingRenderingPipeline && !volumetricLightingRenderingPipeline.isDisposed) {
+		return volumetricLightingRenderingPipeline.serializeConfiguration();
 	}
 
-	return volumetricLightingRenderingPipeline.serializeConfiguration();
+	return configuration;
 }
 
 export function parseVolumetricLightingRenderingPipeline(editor: Editor, data: any): VolumetricLightingRenderingPipeline {
@@ -64,18 +73,20 @@ export function parseVolumetricLightingRenderingPipeline(editor: Editor, data: a
 
 	// A project saved before the medium was derived from the size of the scene has no value stored for it,
 	// and the static defaults would be wrong for anything but a scene authored in centimetres.
-	const configuration = { ...data };
-	if (configuration.fogDensity === undefined) {
-		configuration.fogDensity = VolumetricLightingRenderingPipeline.GetDefaultFogDensity(pipeline.scene, pipeline.camera);
+	const config = { ...data };
+	if (config.fogDensity === undefined) {
+		config.fogDensity = VolumetricLightingRenderingPipeline.GetDefaultFogDensity(pipeline.scene, pipeline.camera);
 	}
-	if (configuration.fogEnd === undefined) {
-		configuration.fogEnd = VolumetricLightingRenderingPipeline.GetDefaultFogEnd(pipeline.scene, pipeline.camera);
+	if (config.fogEnd === undefined) {
+		config.fogEnd = VolumetricLightingRenderingPipeline.GetDefaultFogEnd(pipeline.scene, pipeline.camera);
 	}
-	if (configuration.screenSpaceShadowMaxDistance === undefined) {
-		configuration.screenSpaceShadowMaxDistance = VolumetricLightingRenderingPipeline.GetDefaultFogEnd(pipeline.scene, pipeline.camera);
+	if (config.screenSpaceShadowMaxDistance === undefined) {
+		config.screenSpaceShadowMaxDistance = VolumetricLightingRenderingPipeline.GetDefaultFogEnd(pipeline.scene, pipeline.camera);
 	}
 
-	pipeline.applyConfiguration(normalizeVolumetricLightingConfiguration(configuration) as IVolumetricLightingConfiguration);
+	pipeline.applyConfiguration(normalizeVolumetricLightingConfiguration(config) as IVolumetricLightingConfiguration);
+	pipeline.markLightsDirty();
+	configuration = pipeline.serializeConfiguration();
 
 	return pipeline;
 }

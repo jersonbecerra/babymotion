@@ -29,7 +29,8 @@ export class EditorCameraInspector extends Component<IEditorInspectorImplementat
 				<div className="text-center text-3xl">Editor Camera</div>
 
 				<EditorInspectorSectionField title="Common">
-					<EditorInspectorNumberField object={this.props.object} property="speed" label="Speed" />
+					<EditorInspectorNumberField object={this.props.object} property="baseSpeed" label="Base Speed" min={1} max={20000} step={5} />
+					<EditorInspectorNumberField object={this.props.object} property="boostMultiplier" label="Shift Boost (Turbo)" min={1} max={20} step={0.5} />
 				</EditorInspectorSectionField>
 
 				<EditorInspectorSectionField title="Fov">

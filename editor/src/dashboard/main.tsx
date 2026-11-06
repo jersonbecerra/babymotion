@@ -91,7 +91,7 @@ export class Dashboard extends Component<IDashboardProps, IDashboardState> {
 
 								<div className="flex flex-col items-end gap-2">
 									<img alt="" src="assets/babylonjs_icon.png" className="w-[48px] object-contain" />
-									<div className="text-xs">Babylon.js Editor v{packageJson.version}</div>
+									<div className="text-xs">Babymotion v{packageJson.version}</div>
 								</div>
 							</div>
 						</Fade>

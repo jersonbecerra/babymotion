@@ -6,10 +6,10 @@ export function setupDashboardMenu(): void {
 	Menu.setApplicationMenu(
 		Menu.buildFromTemplate([
 			{
-				label: "Babylon.js Editor",
+				label: "Babymotion",
 				submenu: [
 					{
-						label: "About Babylon.js Editor",
+						label: "About Babymotion",
 						role: "about",
 					},
 					{
@@ -17,7 +17,7 @@ export function setupDashboardMenu(): void {
 					},
 					{
 						click: () => ipcMain.emit("app:quit"),
-						label: "Exit Babylon.js Editor",
+						label: "Exit Babymotion",
 						accelerator: "CommandOrControl+Q",
 					},
 				],

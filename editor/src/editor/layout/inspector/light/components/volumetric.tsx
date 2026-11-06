@@ -11,7 +11,7 @@ import {
 	isVolumetricLightingAvailable,
 } from "../../../../../tools/light/volumetric";
 
-import { markVolumetricLightsDirty } from "../../../../rendering/volumetric-lighting";
+import { createVolumetricLightingRenderingPipeline, getVolumetricLightingRenderingPipeline, markVolumetricLightsDirty } from "../../../../rendering/volumetric-lighting";
 
 import { EditorInspectorColorField } from "../../fields/color";
 import { EditorInspectorSwitchField } from "../../fields/switch";
@@ -35,9 +35,24 @@ export function EditorLightVolumetricInspector(props: IEditorLightVolumetricInsp
 	const configuration = getVolumetricLightConfigurationProxy(props.light);
 	const colorObject = getVolumetricLightColorObject(props.light);
 	const occlusion = getVolumetricLightOcclusionMode(props.light, props.editor);
+	const pipeline = getVolumetricLightingRenderingPipeline();
 
 	return (
 		<EditorInspectorSectionField title="Volumetric Lighting" tooltip="Makes this light produce light shafts in the participating medium of the scene.">
+			{!pipeline && (
+				<div className="px-2 py-2 mb-2 text-xs text-amber-300/90 bg-amber-500/10 rounded border border-amber-500/30 flex flex-col gap-1.5">
+					<span>Volumetric Lighting is currently disabled on the Scene.</span>
+					<button
+						className="text-xs text-left text-sky-400 hover:text-sky-300 underline font-medium cursor-pointer"
+						onClick={() => {
+							createVolumetricLightingRenderingPipeline(props.editor);
+							props.editor.layout.inspector.forceUpdate();
+						}}
+					>
+						Enable Volumetric Lighting on Scene
+					</button>
+				</div>
+			)}
 			<EditorInspectorSwitchField
 				noUndoRedo
 				object={configuration}

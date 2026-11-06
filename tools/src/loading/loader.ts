@@ -203,6 +203,13 @@ export async function loadScene(rootUrl: string, sceneFilename: string, scene: S
 
 	options?.onProgress?.(1);
 
+	// Ensure materials do not exceed WebGL2 uniform buffer limits (GL_MAX_VERTEX_UNIFORM_BUFFERS = 12)
+	scene.materials.forEach((material) => {
+		if ((material as any).maxSimultaneousLights && (material as any).maxSimultaneousLights > 4) {
+			(material as any).maxSimultaneousLights = 4;
+		}
+	});
+
 	configureMeshDistanceOrScreenCoverage(scene);
 	applyMeshesLODQuality(scene.loadingLodsQuality, scene);
 

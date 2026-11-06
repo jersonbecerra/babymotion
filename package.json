@@ -1,11 +1,11 @@
 {
-	"name": "babylonjs-editor-main",
-	"version": "5.0.0",
+	"name": "babymotion",
+	"version": "5.5.3",
 	"private": true,
-	"description": "Babylon.js Editor is a Web Application helping artists to work with Babylon.js",
-	"productName": "Babylon.js Editor",
+	"description": "Babymotion 3D Editor",
+	"productName": "Babymotion",
 	"repository": {
-		"url": "https://github.com/BabylonJS/Editor/"
+		"url": "https://github.com/jersonbecerra/babymotion"
 	},
 	"author": {
 		"name": "Julien Moreau-Mathis",

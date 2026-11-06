@@ -71,7 +71,8 @@ import { UniqueNumber, waitNextAnimationFrame, waitUntil } from "../../tools/too
 import { isSprite, isSpriteManagerNode, isSpriteMapNode } from "../../tools/guards/sprites";
 import { checkProjectCachedCompressedTextures, initializeKtx2Decoder } from "../../tools/assets/ktx";
 import { defaultGizmoSnapPreferences, IGizmoSnapPreferences, roundGizmoSnapSteps } from "../../tools/scene/gizmo";
-import { isAbstractMesh, isAnyTransformNode, isCamera, isCollisionInstancedMesh, isCollisionMesh, isLight, isNode } from "../../tools/guards/nodes";
+import { isAbstractMesh, isAnyTransformNode, isCamera, isCollisionInstancedMesh, isCollisionMesh, isEditorCamera, isLight, isNode } from "../../tools/guards/nodes";
+import { updateAllLights } from "../../tools/light/shadows";
 
 import { EditorCamera } from "../nodes/camera";
 
@@ -97,6 +98,7 @@ import { EditorPreviewPlayComponent } from "./preview/play";
 
 import { EditorPreviewGizmo } from "./preview/gizmo/gizmo";
 import { EditorPreviewGizmoSettings } from "./preview/gizmo/settings";
+import { EditorPreviewCameraSpeed } from "./preview/camera-speed";
 
 import { Stats } from "./preview/stats/stats";
 import { StatRow } from "./preview/stats/row";
@@ -1137,6 +1139,10 @@ export class EditorPreview extends Component<IEditorPreviewProps, IEditorPreview
 							</DropdownMenuLabel>
 						</DropdownMenuContent>
 					</DropdownMenu>
+
+					<Separator orientation="vertical" className="mx-1 h-[24px]" />
+
+					<EditorPreviewCameraSpeed editor={this.props.editor} preview={this} camera={this.camera} />
 				</TooltipProvider>
 			</div>
 		);
@@ -1175,11 +1181,20 @@ export class EditorPreview extends Component<IEditorPreviewProps, IEditorPreview
 		disposeVLSPostProcess(this.props.editor);
 		disposeSSRRenderingPipeline();
 		disposeMotionBlurPostProcess();
-		disposeVolumetricLightingRenderingPipeline();
+		disposeVolumetricLightingRenderingPipeline(true);
 		disposeDefaultRenderingPipeline();
 		disposeTAARenderingPipeline();
 
-		const ssao2Pipeline = ssaoRenderingPipelineCameraConfigurations.get(camera);
+		let ssao2Pipeline = ssaoRenderingPipelineCameraConfigurations.get(camera);
+		if (!ssao2Pipeline && isEditorCamera(camera)) {
+			for (const c of this.scene.cameras) {
+				const conf = ssaoRenderingPipelineCameraConfigurations.get(c);
+				if (conf) {
+					ssao2Pipeline = conf;
+					break;
+				}
+			}
+		}
 		if (ssao2Pipeline) {
 			parseSSAO2RenderingPipeline(this.props.editor, ssao2Pipeline);
 		}
@@ -1189,27 +1204,72 @@ export class EditorPreview extends Component<IEditorPreviewProps, IEditorPreview
 			parseVolumetricLightingRenderingPipeline(this.props.editor, volumetricLightingRenderingPipeline);
 		}
 
-		const vlsPostProcess = vlsPostProcessCameraConfigurations.get(camera);
+		let vlsPostProcess = vlsPostProcessCameraConfigurations.get(camera);
+		if (!vlsPostProcess && isEditorCamera(camera)) {
+			for (const c of this.scene.cameras) {
+				const conf = vlsPostProcessCameraConfigurations.get(c);
+				if (conf) {
+					vlsPostProcess = conf;
+					break;
+				}
+			}
+		}
 		if (vlsPostProcess) {
 			parseVLSPostProcess(this.props.editor, vlsPostProcess);
 		}
 
-		const ssrPipeline = ssrRenderingPipelineCameraConfigurations.get(camera);
+		let ssrPipeline = ssrRenderingPipelineCameraConfigurations.get(camera);
+		if (!ssrPipeline && isEditorCamera(camera)) {
+			for (const c of this.scene.cameras) {
+				const conf = ssrRenderingPipelineCameraConfigurations.get(c);
+				if (conf) {
+					ssrPipeline = conf;
+					break;
+				}
+			}
+		}
 		if (ssrPipeline) {
 			parseSSRRenderingPipeline(this.props.editor, ssrPipeline);
 		}
 
-		const motionBlurPostProcess = motionBlurPostProcessCameraConfigurations.get(camera);
+		let motionBlurPostProcess = motionBlurPostProcessCameraConfigurations.get(camera);
+		if (!motionBlurPostProcess && isEditorCamera(camera)) {
+			for (const c of this.scene.cameras) {
+				const conf = motionBlurPostProcessCameraConfigurations.get(c);
+				if (conf) {
+					motionBlurPostProcess = conf;
+					break;
+				}
+			}
+		}
 		if (motionBlurPostProcess) {
 			parseMotionBlurPostProcess(this.props.editor, motionBlurPostProcess);
 		}
 
-		const defaultRenderingPipeline = defaultPipelineCameraConfigurations.get(camera);
+		let defaultRenderingPipeline = defaultPipelineCameraConfigurations.get(camera);
+		if (!defaultRenderingPipeline && isEditorCamera(camera)) {
+			for (const c of this.scene.cameras) {
+				const conf = defaultPipelineCameraConfigurations.get(c);
+				if (conf) {
+					defaultRenderingPipeline = conf;
+					break;
+				}
+			}
+		}
 		if (defaultRenderingPipeline) {
 			parseDefaultRenderingPipeline(this.props.editor, defaultRenderingPipeline);
 		}
 
-		const taaRenderingPipeline = taaPipelineCameraConfigurations.get(camera);
+		let taaRenderingPipeline = taaPipelineCameraConfigurations.get(camera);
+		if (!taaRenderingPipeline && isEditorCamera(camera)) {
+			for (const c of this.scene.cameras) {
+				const conf = taaPipelineCameraConfigurations.get(c);
+				if (conf) {
+					taaRenderingPipeline = conf;
+					break;
+				}
+			}
+		}
 		if (taaRenderingPipeline) {
 			parseTAARenderingPipeline(this.props.editor, taaRenderingPipeline);
 		}
@@ -1219,9 +1279,12 @@ export class EditorPreview extends Component<IEditorPreviewProps, IEditorPreview
 				const shadowMap = shadowGenerator.getShadowMap();
 				if (shadowMap) {
 					shadowMap.activeCamera = camera;
+					shadowMap.resetRefreshCounter();
 				}
 			});
 		});
+
+		updateAllLights(this.scene);
 
 		this.props.editor.layout.inspector.forceUpdate();
 

@@ -29,8 +29,10 @@ import { ensureTemporaryDirectoryExists } from "../../../tools/project";
 import { compileScript } from "../../../tools/compile";
 import { setUndoRedoEnabled } from "../../../tools/undoredo";
 import { wait, waitNextAnimationFrame } from "../../../tools/tools";
-import { forceCompileAllSceneMaterials } from "../../../tools/material/material";
+import { configureSimultaneousLightsForMaterial, forceCompileAllSceneMaterials } from "../../../tools/material/material";
 import { applyOverrides, restorePlayOverrides } from "../../../tools/scene/play/override";
+import { updateAllLights } from "../../../tools/light/shadows";
+import { updateIblShadowsRenderPipeline } from "../../../tools/light/ibl";
 
 import { exportProject } from "../../../project/export/export";
 import { projectConfiguration } from "../../../project/configuration";
@@ -276,6 +278,14 @@ export class EditorPreviewPlayComponent extends Component<IEditorPreviewPlayComp
 
 		this.props.editor.layout.preview.scene.activeCamera?.attachControl(true);
 
+		const editorScene = this.props.editor.layout.preview.scene;
+		const activeCam = editorScene.activeCamera ?? this.props.editor.layout.preview.camera;
+		if (activeCam) {
+			this.props.editor.layout.preview.switchToCamera(activeCam);
+		}
+		updateAllLights(editorScene);
+		updateIblShadowsRenderPipeline(editorScene, true);
+
 		this._closeWatchSrcDirectory();
 	}
 
@@ -430,6 +440,8 @@ export class EditorPreviewPlayComponent extends Component<IEditorPreviewPlayComp
 		}
 
 		scene.activeCamera?.attachControl(true);
+
+		scene.materials.forEach((m) => configureSimultaneousLightsForMaterial(m));
 
 		await forceCompileAllSceneMaterials(scene);
 

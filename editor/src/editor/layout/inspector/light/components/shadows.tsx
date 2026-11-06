@@ -298,8 +298,8 @@ export class EditorLightShadowsInspector extends Component<IEditorLightShadowsIn
 
 				{generator.useContactHardeningShadow && (
 					<EditorInspectorNumberField
-						object={generator.contactHardeningLightSizeUVRatio}
-						property="blurScale"
+						object={generator}
+						property="contactHardeningLightSizeUVRatio"
 						step={0.001}
 						min={0}
 						max={1}

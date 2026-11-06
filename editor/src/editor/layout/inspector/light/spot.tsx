@@ -1,7 +1,7 @@
 import { Component, ReactNode } from "react";
 import { Divider } from "@blueprintjs/core";
 
-import { SpotLight } from "babylonjs";
+import { Light, SpotLight } from "babylonjs";
 
 import { isSpotLight } from "../../../../tools/guards/nodes";
 import { onNodeModifiedObservable } from "../../../../tools/observables";
@@ -14,6 +14,7 @@ import { EditorInspectorStringField } from "../fields/string";
 import { EditorInspectorVectorField } from "../fields/vector";
 import { EditorInspectorNumberField } from "../fields/number";
 import { EditorInspectorSectionField } from "../fields/section";
+import { EditorInspectorListField } from "../fields/list";
 // import { EditorInspectorTextureField } from "../fields/texture";
 
 import { ScriptInspectorComponent } from "../script/script";
@@ -35,6 +36,20 @@ export class EditorSpotLightInspector extends Component<IEditorInspectorImplemen
 	}
 
 	public render(): ReactNode {
+		const light = this.props.object;
+		const softnessProxy = {
+			get softness(): number {
+				const angle = Math.max(0.001, light.angle);
+				const inner = Math.max(0, light.innerAngle ?? 0);
+				return Math.max(0, Math.min(1, 1 - inner / angle));
+			},
+			set softness(value: number) {
+				const clamped = Math.max(0, Math.min(1, value));
+				light.innerAngle = light.angle * (1 - clamped);
+				onNodeModifiedObservable.notifyObservers(light);
+			},
+		};
+
 		return (
 			<>
 				<EditorInspectorSectionField title="Common">
@@ -59,6 +74,7 @@ export class EditorSpotLightInspector extends Component<IEditorInspectorImplemen
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 					<EditorInspectorVectorField
@@ -68,6 +84,7 @@ export class EditorSpotLightInspector extends Component<IEditorInspectorImplemen
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 				</EditorInspectorSectionField>
@@ -88,6 +105,7 @@ export class EditorSpotLightInspector extends Component<IEditorInspectorImplemen
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 
@@ -102,8 +120,73 @@ export class EditorSpotLightInspector extends Component<IEditorInspectorImplemen
 
 					<Divider />
 
-					<EditorInspectorNumberField asDegrees label="Angle" object={this.props.object} property="angle" min={0} max={Math.PI} step={0.1} />
-					<EditorInspectorNumberField label="Exponent" object={this.props.object} property="exponent" />
+					<EditorInspectorListField
+						object={this.props.object}
+						property="falloffType"
+						label="Falloff Type"
+						items={[
+							{ text: "Physical (Inverse Square)", value: Light.FALLOFF_PHYSICAL },
+							{ text: "GLTF Standard", value: Light.FALLOFF_GLTF },
+							{ text: "Standard Default", value: Light.FALLOFF_DEFAULT },
+						]}
+						onChange={() => onNodeModifiedObservable.notifyObservers(this.props.object)}
+					/>
+					<EditorInspectorNumberField
+						label="Light Radius"
+						object={this.props.object}
+						property="radius"
+						min={0}
+						max={10}
+						step={0.05}
+						onChange={() => onNodeModifiedObservable.notifyObservers(this.props.object)}
+					/>
+
+					<Divider />
+
+					<EditorInspectorNumberField
+						asDegrees
+						label="Angle"
+						object={this.props.object}
+						property="angle"
+						min={0}
+						max={Math.PI}
+						step={0.1}
+						onChange={() => {
+							onNodeModifiedObservable.notifyObservers(this.props.object);
+							this.forceUpdate();
+						}}
+					/>
+					<EditorInspectorNumberField
+						asDegrees
+						label="Inner Angle"
+						object={this.props.object}
+						property="innerAngle"
+						min={0}
+						max={Math.PI}
+						step={0.1}
+						onChange={() => {
+							onNodeModifiedObservable.notifyObservers(this.props.object);
+							this.forceUpdate();
+						}}
+					/>
+					<EditorInspectorNumberField
+						label="Softness / Penumbra"
+						object={softnessProxy}
+						property="softness"
+						min={0}
+						max={1}
+						step={0.01}
+						onChange={() => {
+							onNodeModifiedObservable.notifyObservers(this.props.object);
+							this.forceUpdate();
+						}}
+					/>
+					<EditorInspectorNumberField
+						label="Exponent"
+						object={this.props.object}
+						property="exponent"
+						onChange={() => onNodeModifiedObservable.notifyObservers(this.props.object)}
+					/>
 				</EditorInspectorSectionField>
 
 				{/* <EditorInspectorSectionField title="Texture">

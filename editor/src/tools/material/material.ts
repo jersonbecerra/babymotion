@@ -1,15 +1,28 @@
-import { Material, NodeMaterial, Scene } from "babylonjs";
+import { Material, MultiMaterial, NodeMaterial, Scene } from "babylonjs";
 
 import { isInstancedMesh } from "../guards/nodes";
 import { isNodeMaterial, isPBRMaterial, isStandardMaterial } from "../guards/material";
 
 /**
- * Configures the given material to receive up to 32 lights simultaneously.
+ * Configures the given material to receive up to 4 lights simultaneously.
+ * In WebGL 2, GL_MAX_VERTEX_UNIFORM_BUFFERS is commonly 12. Setting this higher (e.g. 16 or 32)
+ * causes shader compilation failures ("VERTEX shader uniform block count exceeds GL_MAX_VERTEX_UNIFORM_BUFFERS (12)")
+ * whenever multiple lights, shadows, and post-process pipelines (TAA, pre-pass, motion blur) are present.
+ * Babylon.js standard is 4, which dynamically assigns the 4 closest/most relevant lights per mesh.
  * @param material defines the reference to the material to configure.
  */
 export function configureSimultaneousLightsForMaterial(material: Material) {
+	if (material instanceof MultiMaterial || (material as any).subMaterials) {
+		(material as any).subMaterials?.forEach((sub: Material) => {
+			if (sub) {
+				configureSimultaneousLightsForMaterial(sub);
+			}
+		});
+		return;
+	}
+
 	if (isPBRMaterial(material) || isStandardMaterial(material) || isNodeMaterial(material)) {
-		material.maxSimultaneousLights = 8;
+		material.maxSimultaneousLights = 4;
 	}
 }
 
@@ -19,6 +32,8 @@ export function configureSimultaneousLightsForMaterial(material: Material) {
  * @param scene The scene to force compile all materials
  */
 export function forceCompileAllSceneMaterials(scene: Scene) {
+	scene.materials.forEach((material) => configureSimultaneousLightsForMaterial(material));
+
 	return Promise.all(
 		scene.materials.map(async (material) => {
 			const meshes = material.getBindedMeshes();

@@ -130,7 +130,7 @@ async function openDashboard(): Promise<void> {
 		setupDashboardMenu();
 
 		dashboardWindow = await createDashboardWindow();
-		dashboardWindow.setTitle("Dashboard");
+		dashboardWindow.setTitle("Babymotion - Dashboard");
 
 		dashboardWindow.on("focus", () => setupDashboardMenu());
 		dashboardWindow.on("closed", () => (dashboardWindow = null));
@@ -178,7 +178,7 @@ async function openProject(filePath: string): Promise<void> {
 	});
 
 	const window = await createEditorWindow(projectConfiguration.isWebGPU ?? false);
-	window.setTitle(basename(dirname(filePath)));
+	window.setTitle(`${basename(dirname(filePath))} - Babymotion`);
 
 	window.on("focus", () => setupEditorMenu(menuOptions));
 	window.once("closed", () => {

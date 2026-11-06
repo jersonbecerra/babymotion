@@ -39,7 +39,7 @@ import { createDirectoryIfNotExist } from "../../tools/fs";
 import { createSceneLink } from "../../tools/scene/scene-link";
 import { updateIblShadowsRenderPipeline } from "../../tools/light/ibl";
 import { IAssetCache, loadSavedAssetsCache } from "../../tools/assets/cache";
-import { forceCompileAllSceneMaterials } from "../../tools/material/material";
+import { configureSimultaneousLightsForMaterial, forceCompileAllSceneMaterials } from "../../tools/material/material";
 import { checkProjectCachedCompressedTextures } from "../../tools/assets/ktx";
 import { isAbstractMesh, isEditorCamera, isMesh } from "../../tools/guards/nodes";
 import { isCubeTexture, isHDRCubeTexture, isTexture } from "../../tools/guards/texture";
@@ -219,6 +219,7 @@ export async function loadScene(editor: Editor, projectPath: string, scenePath: 
 		if (camera) {
 			editor.layout.preview.camera.dispose();
 			editor.layout.preview.camera = camera;
+			scene.activeCamera = camera;
 
 			_GetAudioEngine(null).listener.attach(camera);
 
@@ -443,6 +444,9 @@ export async function loadScene(editor: Editor, projectPath: string, scenePath: 
 
 		// Volumetric lighting
 		setVolumetricLightingRenderingPipelineConfiguration(config.volumetricLightingRenderingPipelineConfiguration);
+		if (config.volumetricLightingRenderingPipelineConfiguration) {
+			parseVolumetricLightingRenderingPipeline(editor, config.volumetricLightingRenderingPipelineConfiguration);
+		}
 
 		// For each camera
 		const postProcessConfigurations = Array.isArray(config.rendering) ? config.rendering : [];
@@ -470,10 +474,6 @@ export async function loadScene(editor: Editor, projectPath: string, scenePath: 
 					parseSSAO2RenderingPipeline(editor, configuration.ssao2RenderingPipeline);
 				}
 
-				if (config.volumetricLightingRenderingPipelineConfiguration) {
-					parseVolumetricLightingRenderingPipeline(editor, config.volumetricLightingRenderingPipelineConfiguration);
-				}
-
 				if (configuration.vlsPostProcess) {
 					parseVLSPostProcess(editor, configuration.vlsPostProcess);
 				}
@@ -498,6 +498,7 @@ export async function loadScene(editor: Editor, projectPath: string, scenePath: 
 	}
 
 	setTimeout(() => {
+		editor.layout.preview.switchToCamera(editor.layout.preview.camera);
 		updateAllLights(scene);
 		updateIblShadowsRenderPipeline(scene, true);
 
@@ -508,6 +509,7 @@ export async function loadScene(editor: Editor, projectPath: string, scenePath: 
 	}, 150);
 
 	if (!options?.asLink) {
+		scene.materials.forEach((m) => configureSimultaneousLightsForMaterial(m));
 		progress.setName("Compiling materials...");
 		await forceCompileAllSceneMaterials(scene);
 	}

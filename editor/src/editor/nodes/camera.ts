@@ -1,4 +1,4 @@
-import { Node, FreeCamera, Scene, Vector3 } from "babylonjs";
+import { Node, FreeCamera, Scene, Vector3, Observable } from "babylonjs";
 import { EditorFreeCameraPanInput } from "./camera-pan-input";
 
 import { isDomTextInputFocused } from "../../tools/dom";
@@ -12,8 +12,19 @@ const DEFAULT_KEYS = {
 	keysDownward: [81], // Q - Down
 };
 
+export const CAMERA_SPEED_KEY_PRESETS: Record<string, number> = {
+	"1": 15,
+	"2": 40,
+	"3": 100,
+	"4": 300,
+	"5": 1000,
+	"6": 3000,
+};
+
 export class EditorCamera extends FreeCamera {
-	private _savedSpeed: number | null = null;
+	private _baseSpeed: number = 100;
+	private _boostMultiplier: number = 5.0;
+	private _isShiftPressed: boolean = false;
 	private _panInput: EditorFreeCameraPanInput;
 
 	private _isAttached: boolean = false;
@@ -22,6 +33,11 @@ export class EditorCamera extends FreeCamera {
 
 	private _keyboardUpListener: (ev: KeyboardEvent) => void;
 	private _keyboardDownListener: (ev: KeyboardEvent) => void;
+	private _blurListener: () => void;
+	private _wheelListener: ((ev: WheelEvent) => void) | null = null;
+	private _canvasElement: HTMLCanvasElement | null = null;
+
+	public onSpeedChangedObservable: Observable<number> = new Observable<number>();
 
 	/**
 	 * Constructor.
@@ -46,13 +62,26 @@ export class EditorCamera extends FreeCamera {
 					return super.detachControl();
 				}
 
-				if (ev.key !== "Shift" || isDomTextInputFocused()) {
+				if (isDomTextInputFocused()) {
 					return;
 				}
 
-				if (this._savedSpeed === null) {
-					this._savedSpeed = this.speed;
-					this.speed *= 0.1;
+				// Speed Level Hotkeys 1-6 (when camera attached and no modifier keys)
+				if (this._isAttached && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+					if (CAMERA_SPEED_KEY_PRESETS[ev.key] !== undefined) {
+						this.baseSpeed = CAMERA_SPEED_KEY_PRESETS[ev.key];
+						return;
+					}
+				}
+
+				// Shift: Speed Boost / Turbo
+				if (ev.key === "Shift") {
+					if (!this._isShiftPressed) {
+						this._isShiftPressed = true;
+						this.speed = this._baseSpeed * this._boostMultiplier;
+						this.onSpeedChangedObservable.notifyObservers(this.speed);
+					}
+					return;
 				}
 			})
 		);
@@ -65,12 +94,58 @@ export class EditorCamera extends FreeCamera {
 					return super.attachControl(this._noPreventDefault);
 				}
 
-				if (ev.key === "Shift" && this._savedSpeed !== null) {
-					this.speed = this._savedSpeed;
-					this._savedSpeed = null;
+				if (ev.key === "Shift") {
+					if (this._isShiftPressed) {
+						this._isShiftPressed = false;
+						this.speed = this._baseSpeed;
+						this.onSpeedChangedObservable.notifyObservers(this.speed);
+					}
+					return;
 				}
 			})
 		);
+
+		window.addEventListener("blur", (this._blurListener = () => {
+			if (this._isShiftPressed) {
+				this._isShiftPressed = false;
+				this.speed = this._baseSpeed;
+				this.onSpeedChangedObservable.notifyObservers(this.speed);
+			}
+		}));
+	}
+
+	public get baseSpeed(): number {
+		return this._baseSpeed;
+	}
+
+	public set baseSpeed(value: number) {
+		const clamped = Math.max(0.5, Math.min(20000, value));
+		this._baseSpeed = clamped;
+		this.speed = this._isShiftPressed ? clamped * this._boostMultiplier : clamped;
+		try {
+			localStorage.setItem("editor-camera-speed", clamped.toString());
+		} catch {}
+		this.onSpeedChangedObservable.notifyObservers(this.speed);
+	}
+
+	public get boostMultiplier(): number {
+		return this._boostMultiplier;
+	}
+
+	public set boostMultiplier(value: number) {
+		const clamped = Math.max(1.0, Math.min(20, value));
+		this._boostMultiplier = clamped;
+		if (this._isShiftPressed) {
+			this.speed = this._baseSpeed * clamped;
+		}
+		try {
+			localStorage.setItem("editor-camera-boost", clamped.toString());
+		} catch {}
+		this.onSpeedChangedObservable.notifyObservers(this.speed);
+	}
+
+	public get isShiftPressed(): boolean {
+		return this._isShiftPressed;
 	}
 
 	/**
@@ -86,10 +161,34 @@ export class EditorCamera extends FreeCamera {
 		if (this._panInput && !this.inputs.attached.editorPan) {
 			this.inputs.add(this._panInput);
 		}
+
+		// Attach mouse wheel while holding right-click to adjust speed
+		const canvas = (this.getScene()?.getEngine()?.inputElement as HTMLCanvasElement) ?? null;
+		if (canvas && canvas !== this._canvasElement) {
+			if (this._canvasElement && this._wheelListener) {
+				this._canvasElement.removeEventListener("wheel", this._wheelListener);
+			}
+			this._canvasElement = canvas;
+			this._wheelListener = (ev: WheelEvent) => {
+				// While right mouse button is held (navigating / flying):
+				if (ev.buttons === 2) {
+					ev.preventDefault();
+					ev.stopPropagation();
+					const factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15;
+					this.baseSpeed = Math.max(0.5, Math.min(20000, Math.round(this.baseSpeed * factor)));
+				}
+			};
+			canvas.addEventListener("wheel", this._wheelListener, { passive: false });
+		}
 	}
 
 	public detachControl(): void {
 		this._isAttached = false;
+		if (this._canvasElement && this._wheelListener) {
+			this._canvasElement.removeEventListener("wheel", this._wheelListener);
+			this._wheelListener = null;
+			this._canvasElement = null;
+		}
 		super.detachControl();
 	}
 
@@ -100,6 +199,23 @@ export class EditorCamera extends FreeCamera {
 	 */
 	public configureFromPreferences(): void {
 		try {
+			const savedSpeed = localStorage.getItem("editor-camera-speed");
+			if (savedSpeed) {
+				const val = parseFloat(savedSpeed);
+				if (!isNaN(val) && val > 0) {
+					this._baseSpeed = val;
+					this.speed = val;
+				}
+			}
+
+			const savedBoost = localStorage.getItem("editor-camera-boost");
+			if (savedBoost) {
+				const val = parseFloat(savedBoost);
+				if (!isNaN(val) && val >= 1) {
+					this._boostMultiplier = val;
+				}
+			}
+
 			const keys = JSON.parse(localStorage.getItem("editor-camera-controls") as string);
 			if (keys && keys.keysUp && keys.keysDown && keys.keysLeft && keys.keysRight && keys.keysUpward && keys.keysDownward) {
 				this.keysUp = keys.keysUp;
@@ -128,8 +244,16 @@ export class EditorCamera extends FreeCamera {
 	public dispose(): void {
 		super.dispose();
 
+		if (this._canvasElement && this._wheelListener) {
+			this._canvasElement.removeEventListener("wheel", this._wheelListener);
+			this._wheelListener = null;
+			this._canvasElement = null;
+		}
+
 		window.removeEventListener("keyup", this._keyboardUpListener);
 		window.removeEventListener("keydown", this._keyboardDownListener);
+		window.removeEventListener("blur", this._blurListener);
+		this.onSpeedChangedObservable.clear();
 	}
 
 	/**

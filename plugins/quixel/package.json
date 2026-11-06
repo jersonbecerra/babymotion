@@ -12,7 +12,7 @@
 	"license": "(Apache-2.0)",
 	"devDependencies": {
 		"@types/node": "^22",
-		"babylonjs-editor": "latest",
+		"babylonjs-editor": "5.5.3",
 		"typescript": "7.0.2"
 	},
 	"dependencies": {

@@ -1,7 +1,7 @@
 import { Component, ReactNode } from "react";
 import { Divider } from "@blueprintjs/core";
 
-import { PointLight } from "babylonjs";
+import { Light, PointLight } from "babylonjs";
 
 import { isPointLight } from "../../../../tools/guards/nodes";
 import { onNodeModifiedObservable } from "../../../../tools/observables";
@@ -14,6 +14,7 @@ import { EditorInspectorStringField } from "../fields/string";
 import { EditorInspectorVectorField } from "../fields/vector";
 import { EditorInspectorNumberField } from "../fields/number";
 import { EditorInspectorSectionField } from "../fields/section";
+import { EditorInspectorListField } from "../fields/list";
 
 import { ScriptInspectorComponent } from "../script/script";
 import { CustomMetadataInspector } from "../metadata/custom-metadata";
@@ -58,6 +59,7 @@ export class EditorPointLightInspector extends Component<IEditorInspectorImpleme
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 				</EditorInspectorSectionField>
@@ -79,6 +81,7 @@ export class EditorPointLightInspector extends Component<IEditorInspectorImpleme
 						onChange={() => {
 							updateLightShadowMapRefreshRate(this.props.object);
 							updatePointLightShadowMapRenderListPredicate(this.props.object);
+							onNodeModifiedObservable.notifyObservers(this.props.object);
 						}}
 					/>
 
@@ -86,6 +89,29 @@ export class EditorPointLightInspector extends Component<IEditorInspectorImpleme
 
 					<EditorLightPBRInspector object={this.props.object} />
 					<EditorLightClusterInspector light={this.props.object} editor={this.props.editor} />
+
+					<Divider />
+
+					<EditorInspectorListField
+						object={this.props.object}
+						property="falloffType"
+						label="Falloff Type"
+						items={[
+							{ text: "Physical (Inverse Square)", value: Light.FALLOFF_PHYSICAL },
+							{ text: "GLTF Standard", value: Light.FALLOFF_GLTF },
+							{ text: "Standard Default", value: Light.FALLOFF_DEFAULT },
+						]}
+						onChange={() => onNodeModifiedObservable.notifyObservers(this.props.object)}
+					/>
+					<EditorInspectorNumberField
+						label="Light Radius"
+						object={this.props.object}
+						property="radius"
+						min={0}
+						max={10}
+						step={0.05}
+						onChange={() => onNodeModifiedObservable.notifyObservers(this.props.object)}
+					/>
 				</EditorInspectorSectionField>
 
 				<ScriptInspectorComponent editor={this.props.editor} object={this.props.object} />

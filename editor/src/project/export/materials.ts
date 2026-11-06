@@ -19,6 +19,12 @@ export function configureMaterials(data: any) {
 
 		return true;
 	});
+
+	data.materials.forEach((material: any) => {
+		if (material.maxSimultaneousLights && material.maxSimultaneousLights > 4) {
+			material.maxSimultaneousLights = 4;
+		}
+	});
 }
 
 export type ProcessExportedMaterialOptions = {

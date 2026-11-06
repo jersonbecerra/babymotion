@@ -20,7 +20,11 @@ const originalTextureParser = SerializationHelper._TextureParser;
 function textureParser(editor: Editor, source: any, scene: Scene, rootUrl: string): BaseTexture | null {
 	const engine = scene.getEngine();
 
-	const name = source.name;
+	const name = source.name ? source.name.replace(/\\/g, "/") : "";
+	source.name = name;
+	if (source.url) {
+		source.url = source.url.replace(/\\/g, "/");
+	}
 	const extension = extname(name).toLowerCase();
 
 	const play = editor.layout.preview.play;
